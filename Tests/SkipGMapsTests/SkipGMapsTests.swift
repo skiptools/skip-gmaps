@@ -141,6 +141,13 @@ let logger: Logger = Logger(subsystem: "SkipGMaps", category: "Tests")
         #expect(GoogleMapType.none.rawValue == 4)
     }
 
+    @Test func testProvideAPIKey() throws {
+        // Verify the API exists and compiles; can't test actual initialization without a real key
+        if false {
+            GoogleMapsConfiguration.provideAPIKey("test-key")
+        }
+    }
+
     @Test func testMarkerHueConstants() throws {
         #expect(GoogleMapMarkerHue.red == Float(0.0))
         #expect(GoogleMapMarkerHue.green == Float(120.0))
@@ -172,5 +179,46 @@ let logger: Logger = Logger(subsystem: "SkipGMaps", category: "Tests")
             onMarkerTap: { marker in return true }
         )
         _ = fullView
+    }
+
+    @Test func testGoogleMapPosition() throws {
+        var pos = GoogleMapPosition(
+            target: GoogleMapCoordinate(latitude: 37.7749, longitude: -122.4194),
+            zoom: Float(12.0),
+            tilt: Float(30.0),
+            bearing: Float(45.0)
+        )
+        #expect(pos.target.latitude == 37.7749)
+        #expect(pos.zoom == Float(12.0))
+        #expect(pos.tilt == Float(30.0))
+        #expect(pos.bearing == Float(45.0))
+
+        // Test equality
+        let pos2 = GoogleMapPosition(
+            target: GoogleMapCoordinate(latitude: 37.7749, longitude: -122.4194),
+            zoom: Float(12.0),
+            tilt: Float(30.0),
+            bearing: Float(45.0)
+        )
+        #expect(pos == pos2)
+
+        // Test inequality
+        pos.zoom = Float(15.0)
+        #expect(pos != pos2)
+
+        // Test init from GoogleMapCameraPosition
+        let camera = GoogleMapCameraPosition(
+            target: GoogleMapCoordinate(latitude: 40.0, longitude: -74.0),
+            zoom: Float(8.0)
+        )
+        let fromCamera = GoogleMapPosition(camera)
+        #expect(fromCamera.target.latitude == 40.0)
+        #expect(fromCamera.zoom == Float(8.0))
+
+        // Default values
+        let defaultPos = GoogleMapPosition(target: GoogleMapCoordinate(latitude: 0.0, longitude: 0.0))
+        #expect(defaultPos.zoom == Float(10.0))
+        #expect(defaultPos.tilt == Float(0.0))
+        #expect(defaultPos.bearing == Float(0.0))
     }
 }

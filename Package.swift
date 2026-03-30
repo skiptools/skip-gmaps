@@ -11,11 +11,13 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://source.skip.tools/skip.git", from: "1.8.2"),
-        .package(url: "https://source.skip.tools/skip-ui.git", from: "1.0.0")
+        .package(url: "https://source.skip.tools/skip-ui.git", from: "1.0.0"),
+        .package(url: "https://github.com/googlemaps/ios-maps-sdk.git", from: "10.10.0")
     ],
     targets: [
         .target(name: "SkipGMaps", dependencies: [
-            .product(name: "SkipUI", package: "skip-ui")
+            .product(name: "SkipUI", package: "skip-ui"),
+            .product(name: "GoogleMaps", package: "ios-maps-sdk", condition: .when(platforms: [.iOS]))
         ], resources: [.process("Resources")], plugins: [.plugin(name: "skipstone", package: "skip")]),
         .testTarget(name: "SkipGMapsTests", dependencies: [
             "SkipGMaps",

@@ -2,7 +2,10 @@
 
 Google Maps for [Skip](https://skip.dev) apps on both iOS and Android.
 
-On Android, this wraps the [Maps Compose](https://github.com/googlemaps/android-maps-compose) library (v8.2) for Jetpack Compose. On iOS, the view displays a placeholder — integrate the [Google Maps iOS SDK](https://github.com/googlemaps/ios-maps-sdk) directly for native iOS maps, or use the built-in `Map` view from MapKit for Apple Maps.
+- **Android**: Wraps [Maps Compose](https://github.com/googlemaps/android-maps-compose) (v8.2) for Jetpack Compose.
+- **iOS**: Wraps the [Google Maps iOS SDK](https://developers.google.com/maps/documentation/ios-sdk/overview) via `UIViewRepresentable` for SwiftUI.
+
+Both platforms use the same `GoogleMapView` API, so one set of code works on both iOS and Android.
 
 ## Setup
 
@@ -25,9 +28,30 @@ let package = Package(
 )
 ```
 
-### Android Configuration
+### API Key
 
-Add your Google Maps API key to `AndroidManifest.xml`:
+Get an API key from the [Google Cloud Console](https://console.cloud.google.com/google/maps-apis/credentials) with the **Maps SDK for Android** and **Maps SDK for iOS** enabled.
+
+Call `GoogleMapsConfiguration.provideAPIKey()` once in your app's initialization, before any `GoogleMapView` is displayed:
+
+```swift
+import SkipGMaps
+
+@main struct MyApp: App {
+    init() {
+        GoogleMapsConfiguration.provideAPIKey("YOUR_GOOGLE_MAPS_API_KEY")
+    }
+
+    var body: some Scene {
+        WindowGroup { ContentView() }
+    }
+}
+```
+
+- **iOS**: This calls `GMSServices.provideAPIKey()` from the Google Maps iOS SDK.
+- **Android**: This sets the API key in the application's manifest metadata at runtime.
+
+Alternatively on Android, you can set the key directly in `AndroidManifest.xml` instead of calling `provideAPIKey()`:
 
 ```xml
 <application>
@@ -37,11 +61,12 @@ Add your Google Maps API key to `AndroidManifest.xml`:
 </application>
 ```
 
-Get an API key from the [Google Cloud Console](https://console.cloud.google.com/google/maps-apis/credentials) with the Maps SDK for Android enabled.
+### iOS SDK Dependency
 
-### iOS Configuration
+The Google Maps iOS SDK is included as a dependency of this package (via the official [ios-maps-sdk](https://github.com/googlemaps/ios-maps-sdk) SPM package) and is automatically linked on iOS builds.
 
-On iOS, SkipGMaps shows a placeholder. For full Google Maps support on iOS, add the [Google Maps iOS SDK](https://developers.google.com/maps/documentation/ios-sdk/overview) directly to your project and use it via `#if !SKIP` blocks, or use Apple's built-in `Map` view from MapKit.
+> [!NOTE]
+> The Google Maps iOS SDK is only compiled on iOS. On macOS (for testing), `GoogleMapView` displays a placeholder instead of a map.
 
 ## Usage
 
@@ -155,6 +180,41 @@ GoogleMapView(
 )
 ```
 
+### Tracking and Controlling Camera Position
+
+Use a `Binding<GoogleMapPosition>` to observe the camera as the user pans/zooms, and to programmatically move the camera:
+
+```swift
+@State var mapPosition = GoogleMapPosition(
+    target: GoogleMapCoordinate(latitude: 37.7749, longitude: -122.4194),
+    zoom: Float(12.0)
+)
+
+var body: some View {
+    VStack {
+        Text("Lat: \(mapPosition.target.latitude, specifier: "%.4f"), Lon: \(mapPosition.target.longitude, specifier: "%.4f")")
+        Text("Zoom: \(mapPosition.zoom, specifier: "%.1f")")
+
+        GoogleMapView(
+            initialCamera: GoogleMapCameraPosition(
+                target: GoogleMapCoordinate(latitude: 37.7749, longitude: -122.4194),
+                zoom: Float(12.0)
+            ),
+            position: $mapPosition
+        )
+
+        Button("Go to New York") {
+            mapPosition = GoogleMapPosition(
+                target: GoogleMapCoordinate(latitude: 40.7128, longitude: -74.0060),
+                zoom: Float(11.0)
+            )
+        }
+    }
+}
+```
+
+When the user pans or zooms the map, `mapPosition` is automatically updated. When you change `mapPosition` programmatically (e.g. from a button), the camera animates to the new position.
+
 ### Handling Map and Marker Taps
 
 ```swift
@@ -182,9 +242,6 @@ GoogleMapMarker(position: coord, title: "Red", hue: GoogleMapMarkerHue.red)
 GoogleMapMarker(position: coord, title: "Blue", hue: GoogleMapMarkerHue.blue)
 GoogleMapMarker(position: coord, title: "Green", hue: GoogleMapMarkerHue.green)
 GoogleMapMarker(position: coord, title: "Yellow", hue: GoogleMapMarkerHue.yellow)
-GoogleMapMarker(position: coord, title: "Orange", hue: GoogleMapMarkerHue.orange)
-GoogleMapMarker(position: coord, title: "Cyan", hue: GoogleMapMarkerHue.cyan)
-GoogleMapMarker(position: coord, title: "Violet", hue: GoogleMapMarkerHue.violet)
 ```
 
 ## API Reference
@@ -194,6 +251,7 @@ GoogleMapMarker(position: coord, title: "Violet", hue: GoogleMapMarkerHue.violet
 | Parameter | Type | Description |
 |---|---|---|
 | `initialCamera` | `GoogleMapCameraPosition` | Initial camera viewpoint |
+| `position` | `Binding<GoogleMapPosition>?` | Two-way camera position binding (optional) |
 | `configuration` | `GoogleMapConfiguration` | Map display and interaction settings |
 | `markers` | `[GoogleMapMarker]` | Markers (pins) to display |
 | `polylines` | `[GoogleMapPolyline]` | Lines to draw |
@@ -211,6 +269,17 @@ GoogleMapMarker(position: coord, title: "Violet", hue: GoogleMapMarkerHue.violet
 | `tilt` | `Float` | 0.0 | Tilt in degrees |
 | `bearing` | `Float` | 0.0 | Bearing clockwise from north |
 
+### GoogleMapPosition
+
+A two-way bindable camera position. Use with `@State` and `$position` to track and control the camera.
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `target` | `GoogleMapCoordinate` | — | Center of the camera |
+| `zoom` | `Float` | 10.0 | Zoom level |
+| `tilt` | `Float` | 0.0 | Tilt in degrees |
+| `bearing` | `Float` | 0.0 | Bearing clockwise from north |
+
 ### GoogleMapConfiguration
 
 | Property | Type | Default | Description |
@@ -218,7 +287,7 @@ GoogleMapMarker(position: coord, title: "Violet", hue: GoogleMapMarkerHue.violet
 | `mapType` | `GoogleMapType` | `.normal` | Tile type (.normal, .satellite, .terrain, .hybrid, .none) |
 | `isMyLocationEnabled` | `Bool` | `false` | Show user location (requires permission) |
 | `isTrafficEnabled` | `Bool` | `false` | Show traffic layer |
-| `isZoomControlsEnabled` | `Bool` | `true` | Zoom buttons |
+| `isZoomControlsEnabled` | `Bool` | `true` | Zoom buttons (Android only) |
 | `isCompassEnabled` | `Bool` | `true` | Compass indicator |
 | `isBuildingEnabled` | `Bool` | `true` | 3D buildings |
 | `isIndoorEnabled` | `Bool` | `true` | Indoor maps |
@@ -239,10 +308,26 @@ GoogleMapMarker(position: coord, title: "Violet", hue: GoogleMapMarkerHue.violet
 
 Predefined hues: `red` (0), `orange` (30), `yellow` (60), `green` (120), `cyan` (180), `azure` (210), `blue` (240), `violet` (270), `magenta` (300), `rose` (330).
 
+## How It Works
+
+### iOS Implementation
+
+On iOS, `GoogleMapView` uses a `UIViewRepresentable` wrapper around `GMSMapView` from the Google Maps iOS SDK. The wrapper:
+
+- Creates a `GMSMapView` with the initial camera position
+- Applies all configuration settings to `GMSMapView.settings`
+- Adds `GMSMarker`, `GMSPolyline`, `GMSPolygon`, and `GMSCircle` overlays
+- Implements `GMSMapViewDelegate` to forward tap events back to the `onMapTap` and `onMarkerTap` callbacks
+- Updates the map when SwiftUI state changes via `updateUIView`
+
+### Android Implementation
+
+On Android, `GoogleMapView` uses a `@Composable` function that emits the `GoogleMap` composable from Maps Compose. Inside the map content lambda, it emits `Marker`, `Polyline`, `Polygon`, and `Circle` composables.
+
 ## Limitations
 
 > [!WARNING]
-> **iOS**: `GoogleMapView` displays a placeholder on iOS. Integrate the [Google Maps iOS SDK](https://developers.google.com/maps/documentation/ios-sdk/overview) directly via `#if !SKIP` blocks, or use Apple's MapKit `Map` view.
+> You must call `GoogleMapsConfiguration.provideAPIKey()` before displaying a `GoogleMapView`, or set the key in your Android manifest. Without a valid API key, the map will not load.
 
 > [!NOTE]
 > **Other limitations:**
@@ -253,6 +338,7 @@ Predefined hues: `red` (0), `orange` (30), `yellow` (60), `green` (120), `cyan` 
 > - Info window customization beyond title/snippet is not yet supported.
 > - Ground overlays and tile overlays are not yet wrapped.
 > - Clustering (Maps Compose Utils) is not yet exposed.
+> - `isZoomControlsEnabled` and `isMapToolbarEnabled` are Android-only settings (iOS does not have equivalent built-in controls).
 
 ## Building
 
