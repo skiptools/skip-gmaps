@@ -7,7 +7,7 @@ let package = Package(
     defaultLocalization: "en",
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
-        .library(name: "SkipGMaps", type: .dynamic, targets: ["SkipGMaps"]),
+        .library(name: "SkipGMaps", targets: ["SkipGMaps"]),
     ],
     dependencies: [
         .package(url: "https://source.skip.tools/skip.git", from: "1.8.2"),
