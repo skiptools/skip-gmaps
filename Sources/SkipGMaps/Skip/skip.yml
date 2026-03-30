@@ -1,0 +1,15 @@
+# Skip configuration for SkipGMaps module
+#
+# this is a transpiled Skip Lite module
+skip:
+  mode: 'transpiled'
+  bridging: true
+
+build:
+  contents:
+    - block: 'dependencies'
+      contents:
+        - 'implementation("com.google.maps.android:maps-compose:8.2.2")'
+        - 'implementation("com.google.maps.android:maps-compose-utils:8.2.2")'
+        - 'implementation("com.google.maps.android:maps-compose-widgets:8.2.2")'
+

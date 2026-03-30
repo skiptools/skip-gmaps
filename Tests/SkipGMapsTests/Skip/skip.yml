@@ -1,0 +1,3 @@
+# # Skip configuration for SkipGMaps module
+#build:
+#  contents:
