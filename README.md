@@ -7,6 +7,11 @@ Google Maps for [Skip](https://skip.dev) apps on both iOS and Android.
 
 Both platforms use the same `GoogleMapView` API, so one set of code works on both iOS and Android.
 
+> [!WARNING]
+> Due to the issue https://issuetracker.google.com/issues/466122128, including this framework will prevent you from being able to run `skip export`, which will fail with the error:
+>
+> `error: unexpected binary name at .build/artifacts/ios-maps-sdk/GoogleMaps/GoogleMaps.xcframework/ios-arm64/GoogleMaps.a. Static libraries should be prefixed with lib`
+
 ## Setup
 
 Add the dependency to your `Package.swift` file:

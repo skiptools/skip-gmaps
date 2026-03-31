@@ -5,11 +5,27 @@ skip:
   mode: 'transpiled'
   bridging: true
 
+# the blocks to add to the settings.gradle.kts
+settings:
+  contents:
+    - block: 'dependencyResolutionManagement'
+      contents:
+        - block: 'versionCatalogs'
+          contents:
+            - block: 'create("libs")'
+              contents:
+                - 'version("gmaps", "8.2.2")'
+                - 'library("google-maps-android-compose", "com.google.maps.android", "maps-compose").versionRef("gmaps")'
+                - 'library("google-maps-android-compose-utils", "com.google.maps.android", "maps-compose-utils").versionRef("gmaps")'
+                - 'library("google-maps-android-compose-widgets", "com.google.maps.android", "maps-compose-widgets").versionRef("gmaps")'
+
+# the blocks to add to the build.gradle.kts
 build:
   contents:
     - block: 'dependencies'
+      export: false
       contents:
-        - 'implementation("com.google.maps.android:maps-compose:8.2.2")'
-        - 'implementation("com.google.maps.android:maps-compose-utils:8.2.2")'
-        - 'implementation("com.google.maps.android:maps-compose-widgets:8.2.2")'
+        - 'implementation(libs.google.maps.android.compose)'
+        - 'implementation(libs.google.maps.android.compose.utils)'
+        - 'implementation(libs.google.maps.android.compose.widgets)'
 

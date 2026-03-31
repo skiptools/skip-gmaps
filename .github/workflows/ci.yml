@@ -16,4 +16,10 @@ jobs:
     uses: skiptools/actions/.github/workflows/skip-framework.yml@v1
     with:
       runs-on: "['macos-15-intel']"
+      # disable export because it currently fails on the iOS side with the error:
+      # error: unexpected binary name at /opt/src/github/skiptools/skip-gmaps/.build/artifacts/ios-maps-sdk/GoogleMaps/GoogleMaps.xcframework/ios-arm64/GoogleMaps.a. Static libraries should be prefixed with lib
+      #
+      # Once the issue is resolved this should work:
+      # https://issuetracker.google.com/issues/466122128
+      run-export: false
 
