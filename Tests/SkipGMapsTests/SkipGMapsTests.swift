@@ -78,10 +78,21 @@ let logger: Logger = Logger(subsystem: "SkipGMaps", category: "Tests")
             GoogleMapCoordinate(latitude: 37.7749, longitude: -122.4194),
             GoogleMapCoordinate(latitude: 34.0522, longitude: -118.2437)
         ]
-        let polyline = GoogleMapPolyline(points: points, strokeColorHex: "#FF0000", strokeWidth: Float(10.0))
+        let polyline = GoogleMapPolyline(points: points, strokeColorHex: "#FF0000", strokeWidth: Float(10.0), geodesic: true, zIndex: 5, tappable: true)
         #expect(polyline.points.count == 2)
         #expect(polyline.strokeColorHex == "#FF0000")
         #expect(polyline.strokeWidth == Float(10.0))
+        #expect(polyline.geodesic == true)
+        #expect(polyline.zIndex == 5)
+        #expect(polyline.tappable == true)
+
+        // Test with stroke pattern
+        let dashed = GoogleMapPolyline(
+            points: points,
+            pattern: [.dash(Float(20.0)), .gap(Float(10.0)), .dot, .gap(Float(10.0))]
+        )
+        #expect(dashed.pattern != nil)
+        #expect(dashed.pattern!.count == 4)
     }
 
     @Test func testPolygon() throws {
@@ -90,10 +101,25 @@ let logger: Logger = Logger(subsystem: "SkipGMaps", category: "Tests")
             GoogleMapCoordinate(latitude: 37.0, longitude: -121.0),
             GoogleMapCoordinate(latitude: 38.0, longitude: -121.0)
         ]
-        let polygon = GoogleMapPolygon(points: points, strokeColorHex: "#0000FF", fillColorHex: "#800000FF")
+        let hole = [
+            GoogleMapCoordinate(latitude: 37.3, longitude: -121.7),
+            GoogleMapCoordinate(latitude: 37.3, longitude: -121.5),
+            GoogleMapCoordinate(latitude: 37.5, longitude: -121.5)
+        ]
+        let polygon = GoogleMapPolygon(
+            points: points,
+            strokeColorHex: "#0000FF",
+            fillColorHex: "#800000FF",
+            geodesic: true,
+            tappable: true,
+            holes: [hole]
+        )
         #expect(polygon.points.count == 3)
         #expect(polygon.strokeColorHex == "#0000FF")
-        #expect(polygon.fillColorHex == "#800000FF")
+        #expect(polygon.geodesic == true)
+        #expect(polygon.tappable == true)
+        #expect(polygon.holes.count == 1)
+        #expect(polygon.holes[0].count == 3)
     }
 
     @Test func testCircle() throws {
@@ -220,5 +246,66 @@ let logger: Logger = Logger(subsystem: "SkipGMaps", category: "Tests")
         #expect(defaultPos.zoom == Float(10.0))
         #expect(defaultPos.tilt == Float(0.0))
         #expect(defaultPos.bearing == Float(0.0))
+    }
+
+    @Test func testMarkerAdvancedProperties() throws {
+        let marker = GoogleMapMarker(
+            position: GoogleMapCoordinate(latitude: 37.0, longitude: -122.0),
+            rotation: 45.0,
+            zIndex: 10,
+            anchorX: Float(0.5),
+            anchorY: Float(0.5)
+        )
+        #expect(marker.rotation == 45.0)
+        #expect(marker.zIndex == 10)
+        #expect(marker.anchorX == Float(0.5))
+        #expect(marker.anchorY == Float(0.5))
+
+        // Default anchor
+        let defaultMarker = GoogleMapMarker(position: GoogleMapCoordinate(latitude: 0.0, longitude: 0.0))
+        #expect(defaultMarker.rotation == 0.0)
+        #expect(defaultMarker.zIndex == 0)
+        #expect(defaultMarker.anchorX == Float(0.5))
+        #expect(defaultMarker.anchorY == Float(1.0))
+    }
+
+    @Test func testCircleAdvancedProperties() throws {
+        let circle = GoogleMapCircle(
+            center: GoogleMapCoordinate(latitude: 37.0, longitude: -122.0),
+            radius: 500.0,
+            zIndex: 3,
+            tappable: true
+        )
+        #expect(circle.zIndex == 3)
+        #expect(circle.tappable == true)
+
+        let defaultCircle = GoogleMapCircle(center: GoogleMapCoordinate(latitude: 0.0, longitude: 0.0), radius: 100.0)
+        #expect(defaultCircle.zIndex == 0)
+        #expect(defaultCircle.tappable == false)
+    }
+
+    @Test func testStrokePatternItems() throws {
+        let pattern: [GoogleMapStrokePatternItem] = [
+            .dash(Float(20.0)),
+            .gap(Float(10.0)),
+            .dot,
+            .gap(Float(5.0))
+        ]
+        #expect(pattern.count == 4)
+    }
+
+    @Test func testConfigurationZoomLimits() throws {
+        let minZ = Float(3.0)
+        let maxZ = Float(18.0)
+        let config = GoogleMapConfiguration(
+            minZoom: minZ,
+            maxZoom: maxZ
+        )
+        #expect(config.minZoom == minZ)
+        #expect(config.maxZoom == maxZ)
+
+        let defaultConfig = GoogleMapConfiguration()
+        #expect(defaultConfig.minZoom == nil)
+        #expect(defaultConfig.maxZoom == nil)
     }
 }

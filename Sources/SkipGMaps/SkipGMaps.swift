@@ -17,21 +17,7 @@ import GoogleMaps
 // MARK: - API Key Configuration
 
 /// Provides the Google Maps API key to the underlying SDK.
-///
-/// Call this once in your app's initialization, before any `GoogleMapView` is displayed.
-///
-/// - **iOS**: Calls `GMSServices.provideAPIKey()`.
-/// - **Android**: Sets the API key in the application's manifest metadata so the Maps SDK can read it.
-///   Alternatively, you can set the key directly in your `AndroidManifest.xml` and skip this call on Android.
-///
-/// ```swift
-/// // In your App.init():
-/// GoogleMapsConfiguration.provideAPIKey("YOUR_API_KEY")
-/// ```
 public enum GoogleMapsConfiguration {
-    /// Provide the Google Maps API key for the current platform.
-    ///
-    /// - Parameter apiKey: Your Google Maps API key.
     public static func provideAPIKey(_ apiKey: String) {
         #if SKIP
         let context = ProcessInfo.processInfo.androidContext
@@ -96,17 +82,10 @@ public struct GoogleMapCameraPosition: Sendable {
 // MARK: - Map Position (Bindable)
 
 /// A live, two-way observable map camera position.
-///
-/// Use with `@State` and pass as a `Binding` to `GoogleMapView(position:)` to
-/// observe the camera as the user pans/zooms, and to programmatically move the camera.
 public struct GoogleMapPosition: Equatable {
-    /// The center coordinate the camera is pointing at.
     public var target: GoogleMapCoordinate
-    /// The zoom level.
     public var zoom: Float
-    /// The tilt angle in degrees.
     public var tilt: Float
-    /// The bearing (rotation) in degrees clockwise from north.
     public var bearing: Float
 
     public init(target: GoogleMapCoordinate, zoom: Float = Float(10.0), tilt: Float = Float(0.0), bearing: Float = Float(0.0)) {
@@ -116,7 +95,6 @@ public struct GoogleMapPosition: Equatable {
         self.bearing = bearing
     }
 
-    /// Create from a `GoogleMapCameraPosition`.
     public init(_ camera: GoogleMapCameraPosition) {
         self.target = camera.target
         self.zoom = camera.zoom
@@ -127,6 +105,18 @@ public struct GoogleMapPosition: Equatable {
     public static func == (lhs: GoogleMapPosition, rhs: GoogleMapPosition) -> Bool {
         lhs.target == rhs.target && lhs.zoom == rhs.zoom && lhs.tilt == rhs.tilt && lhs.bearing == rhs.bearing
     }
+}
+
+// MARK: - Stroke Pattern
+
+/// A pattern segment for dashed/dotted lines.
+public enum GoogleMapStrokePatternItem: Sendable {
+    /// A solid dash of the given length in points.
+    case dash(Float)
+    /// A gap of the given length in points.
+    case gap(Float)
+    /// A dot.
+    case dot
 }
 
 // MARK: - Marker
@@ -141,6 +131,13 @@ public struct GoogleMapMarker: Identifiable, Sendable {
     public var opacity: Float
     public var draggable: Bool
     public var flat: Bool
+    /// Clockwise rotation of the marker in degrees around the anchor.
+    public var rotation: Double
+    /// Z-index for draw ordering. Higher values are drawn on top.
+    public var zIndex: Int
+    /// The anchor point (0,0 = top-left, 0.5,0.5 = center, 0.5,1.0 = bottom-center default).
+    public var anchorX: Float
+    public var anchorY: Float
 
     public init(
         id: String = UUID().uuidString,
@@ -150,7 +147,11 @@ public struct GoogleMapMarker: Identifiable, Sendable {
         hue: Float? = nil,
         opacity: Float = Float(1.0),
         draggable: Bool = false,
-        flat: Bool = false
+        flat: Bool = false,
+        rotation: Double = 0.0,
+        zIndex: Int = 0,
+        anchorX: Float = Float(0.5),
+        anchorY: Float = Float(1.0)
     ) {
         self.id = id
         self.position = position
@@ -160,6 +161,10 @@ public struct GoogleMapMarker: Identifiable, Sendable {
         self.opacity = opacity
         self.draggable = draggable
         self.flat = flat
+        self.rotation = rotation
+        self.zIndex = zIndex
+        self.anchorX = anchorX
+        self.anchorY = anchorY
     }
 }
 
@@ -171,12 +176,33 @@ public struct GoogleMapPolyline: Identifiable, Sendable {
     public var points: [GoogleMapCoordinate]
     public var strokeColorHex: String
     public var strokeWidth: Float
+    /// Whether the polyline is geodesic (curved along the earth's surface).
+    public var geodesic: Bool
+    /// Z-index for draw ordering.
+    public var zIndex: Int
+    /// Whether the polyline is tappable.
+    public var tappable: Bool
+    /// Stroke pattern segments (nil = solid).
+    public var pattern: [GoogleMapStrokePatternItem]?
 
-    public init(id: String = UUID().uuidString, points: [GoogleMapCoordinate], strokeColorHex: String = "#0000FF", strokeWidth: Float = Float(5.0)) {
+    public init(
+        id: String = UUID().uuidString,
+        points: [GoogleMapCoordinate],
+        strokeColorHex: String = "#0000FF",
+        strokeWidth: Float = Float(5.0),
+        geodesic: Bool = false,
+        zIndex: Int = 0,
+        tappable: Bool = false,
+        pattern: [GoogleMapStrokePatternItem]? = nil
+    ) {
         self.id = id
         self.points = points
         self.strokeColorHex = strokeColorHex
         self.strokeWidth = strokeWidth
+        self.geodesic = geodesic
+        self.zIndex = zIndex
+        self.tappable = tappable
+        self.pattern = pattern
     }
 }
 
@@ -189,13 +215,35 @@ public struct GoogleMapPolygon: Identifiable, Sendable {
     public var strokeColorHex: String
     public var fillColorHex: String
     public var strokeWidth: Float
+    /// Whether the polygon edges are geodesic.
+    public var geodesic: Bool
+    /// Z-index for draw ordering.
+    public var zIndex: Int
+    /// Whether the polygon is tappable.
+    public var tappable: Bool
+    /// Holes (exclusion zones) within the polygon.
+    public var holes: [[GoogleMapCoordinate]]
 
-    public init(id: String = UUID().uuidString, points: [GoogleMapCoordinate], strokeColorHex: String = "#000000", fillColorHex: String = "#40000000", strokeWidth: Float = Float(2.0)) {
+    public init(
+        id: String = UUID().uuidString,
+        points: [GoogleMapCoordinate],
+        strokeColorHex: String = "#000000",
+        fillColorHex: String = "#40000000",
+        strokeWidth: Float = Float(2.0),
+        geodesic: Bool = false,
+        zIndex: Int = 0,
+        tappable: Bool = false,
+        holes: [[GoogleMapCoordinate]] = []
+    ) {
         self.id = id
         self.points = points
         self.strokeColorHex = strokeColorHex
         self.fillColorHex = fillColorHex
         self.strokeWidth = strokeWidth
+        self.geodesic = geodesic
+        self.zIndex = zIndex
+        self.tappable = tappable
+        self.holes = holes
     }
 }
 
@@ -209,14 +257,29 @@ public struct GoogleMapCircle: Identifiable, Sendable {
     public var strokeColorHex: String
     public var fillColorHex: String
     public var strokeWidth: Float
+    /// Z-index for draw ordering.
+    public var zIndex: Int
+    /// Whether the circle is tappable.
+    public var tappable: Bool
 
-    public init(id: String = UUID().uuidString, center: GoogleMapCoordinate, radius: Double, strokeColorHex: String = "#000000", fillColorHex: String = "#40000000", strokeWidth: Float = Float(2.0)) {
+    public init(
+        id: String = UUID().uuidString,
+        center: GoogleMapCoordinate,
+        radius: Double,
+        strokeColorHex: String = "#000000",
+        fillColorHex: String = "#40000000",
+        strokeWidth: Float = Float(2.0),
+        zIndex: Int = 0,
+        tappable: Bool = false
+    ) {
         self.id = id
         self.center = center
         self.radius = radius
         self.strokeColorHex = strokeColorHex
         self.fillColorHex = fillColorHex
         self.strokeWidth = strokeWidth
+        self.zIndex = zIndex
+        self.tappable = tappable
     }
 }
 
@@ -237,6 +300,10 @@ public struct GoogleMapConfiguration: Sendable {
     public var isIndoorEnabled: Bool
     public var isTrafficEnabled: Bool
     public var isBuildingEnabled: Bool
+    /// Minimum zoom level the camera can be set to.
+    public var minZoom: Float?
+    /// Maximum zoom level the camera can be set to.
+    public var maxZoom: Float?
 
     public init(
         mapType: GoogleMapType = .normal,
@@ -251,7 +318,9 @@ public struct GoogleMapConfiguration: Sendable {
         isMyLocationButtonEnabled: Bool = true,
         isIndoorEnabled: Bool = true,
         isTrafficEnabled: Bool = false,
-        isBuildingEnabled: Bool = true
+        isBuildingEnabled: Bool = true,
+        minZoom: Float? = nil,
+        maxZoom: Float? = nil
     ) {
         self.mapType = mapType
         self.isMyLocationEnabled = isMyLocationEnabled
@@ -266,6 +335,8 @@ public struct GoogleMapConfiguration: Sendable {
         self.isIndoorEnabled = isIndoorEnabled
         self.isTrafficEnabled = isTrafficEnabled
         self.isBuildingEnabled = isBuildingEnabled
+        self.minZoom = minZoom
+        self.maxZoom = maxZoom
     }
 }
 
@@ -290,7 +361,6 @@ public struct GoogleMapMarkerHue {
 #if canImport(UIKit) && !SKIP
 import UIKit
 
-/// Parse a hex color string (e.g. "#FF0000" or "#80FF0000") to a UIColor.
 private func colorFromHex(_ hex: String) -> UIColor {
     var hexStr = hex.trimmingCharacters(in: .whitespacesAndNewlines)
     if hexStr.hasPrefix("#") { hexStr.removeFirst() }
@@ -313,16 +383,7 @@ private func colorFromHex(_ hex: String) -> UIColor {
 
 // MARK: - GoogleMapView
 
-/// A SwiftUI view that displays a Google Map.
-///
-/// On iOS, this wraps the Google Maps iOS SDK via UIViewRepresentable.
-/// On Android, this wraps `com.google.maps.android:maps-compose` via Jetpack Compose.
-///
-/// **iOS**: Requires the Google Maps iOS SDK. Add it to your project and call
-/// `GMSServices.provideAPIKey("YOUR_API_KEY")` in your app's initialization.
-/// If the SDK is not available, a placeholder is shown.
-///
-/// **Android**: Requires a Google Maps API key in `AndroidManifest.xml`.
+/// A SwiftUI view that displays a Google Map with markers, polylines, polygons, and circles.
 public struct GoogleMapView: View {
     let initialCamera: GoogleMapCameraPosition
     var positionBinding: Binding<GoogleMapPosition>?
@@ -332,22 +393,13 @@ public struct GoogleMapView: View {
     let polygons: [GoogleMapPolygon]
     let circles: [GoogleMapCircle]
     let onMapTap: ((GoogleMapCoordinate) -> Void)?
+    let onMapLongPress: ((GoogleMapCoordinate) -> Void)?
     let onMarkerTap: ((GoogleMapMarker) -> Bool)?
+    let onMarkerDragEnd: ((GoogleMapMarker, GoogleMapCoordinate) -> Void)?
+    let onPolylineTap: ((GoogleMapPolyline) -> Void)?
+    let onPolygonTap: ((GoogleMapPolygon) -> Void)?
+    let onCircleTap: ((GoogleMapCircle) -> Void)?
 
-    /// Create a Google Map view.
-    ///
-    /// - Parameters:
-    ///   - initialCamera: The initial camera position (used only on first display).
-    ///   - position: An optional binding to a `GoogleMapPosition` that tracks the camera.
-    ///     When the user pans/zooms, the binding is updated. When you change the binding
-    ///     externally, the camera animates to the new position.
-    ///   - configuration: Map display and interaction settings.
-    ///   - markers: Markers to display.
-    ///   - polylines: Lines to draw.
-    ///   - polygons: Filled polygons to draw.
-    ///   - circles: Circle overlays.
-    ///   - onMapTap: Called when the map background is tapped.
-    ///   - onMarkerTap: Called when a marker is tapped. Return `true` to consume.
     public init(
         initialCamera: GoogleMapCameraPosition = GoogleMapCameraPosition(target: GoogleMapCoordinate(latitude: 37.7749, longitude: -122.4194)),
         position: Binding<GoogleMapPosition>? = nil,
@@ -357,7 +409,12 @@ public struct GoogleMapView: View {
         polygons: [GoogleMapPolygon] = [],
         circles: [GoogleMapCircle] = [],
         onMapTap: ((GoogleMapCoordinate) -> Void)? = nil,
-        onMarkerTap: ((GoogleMapMarker) -> Bool)? = nil
+        onMapLongPress: ((GoogleMapCoordinate) -> Void)? = nil,
+        onMarkerTap: ((GoogleMapMarker) -> Bool)? = nil,
+        onMarkerDragEnd: ((GoogleMapMarker, GoogleMapCoordinate) -> Void)? = nil,
+        onPolylineTap: ((GoogleMapPolyline) -> Void)? = nil,
+        onPolygonTap: ((GoogleMapPolygon) -> Void)? = nil,
+        onCircleTap: ((GoogleMapCircle) -> Void)? = nil
     ) {
         self.initialCamera = initialCamera
         self.positionBinding = position
@@ -367,7 +424,12 @@ public struct GoogleMapView: View {
         self.polygons = polygons
         self.circles = circles
         self.onMapTap = onMapTap
+        self.onMapLongPress = onMapLongPress
         self.onMarkerTap = onMarkerTap
+        self.onMarkerDragEnd = onMarkerDragEnd
+        self.onPolylineTap = onPolylineTap
+        self.onPolygonTap = onPolygonTap
+        self.onCircleTap = onCircleTap
     }
 
     #if !SKIP
@@ -382,7 +444,12 @@ public struct GoogleMapView: View {
             polygons: polygons,
             circles: circles,
             onMapTap: onMapTap,
-            onMarkerTap: onMarkerTap
+            onMapLongPress: onMapLongPress,
+            onMarkerTap: onMarkerTap,
+            onMarkerDragEnd: onMarkerDragEnd,
+            onPolylineTap: onPolylineTap,
+            onPolygonTap: onPolygonTap,
+            onCircleTap: onCircleTap
         )
         #elseif os(iOS)
         Text("Google Maps iOS SDK not found. Add GoogleMaps to your project dependencies.")
@@ -404,34 +471,22 @@ public struct GoogleMapView: View {
             )
         }
 
-        // Sync binding -> camera: when the external binding changes, move the camera
+        // Sync binding -> camera
         // SKIP INSERT: if (positionBinding != null) {
         // SKIP INSERT:     val boundPos = positionBinding!!.wrappedValue
-        // SKIP INSERT:     val currentTarget = cameraPositionState.position.target
-        // SKIP INSERT:     val currentZoom = cameraPositionState.position.zoom
-        // SKIP INSERT:     if (boundPos.target.latitude != currentTarget.latitude || boundPos.target.longitude != currentTarget.longitude || boundPos.zoom != currentZoom) {
-        // SKIP INSERT:         val newCamPos = com.google.android.gms.maps.model.CameraPosition.Builder()
+        // SKIP INSERT:     val ct = cameraPositionState.position.target
+        // SKIP INSERT:     if (boundPos.target.latitude != ct.latitude || boundPos.target.longitude != ct.longitude || boundPos.zoom != cameraPositionState.position.zoom) {
+        // SKIP INSERT:         cameraPositionState.position = com.google.android.gms.maps.model.CameraPosition.Builder()
         // SKIP INSERT:             .target(com.google.android.gms.maps.model.LatLng(boundPos.target.latitude, boundPos.target.longitude))
-        // SKIP INSERT:             .zoom(boundPos.zoom)
-        // SKIP INSERT:             .tilt(boundPos.tilt)
-        // SKIP INSERT:             .bearing(boundPos.bearing)
-        // SKIP INSERT:             .build()
-        // SKIP INSERT:         cameraPositionState.position = newCamPos
+        // SKIP INSERT:             .zoom(boundPos.zoom).tilt(boundPos.tilt).bearing(boundPos.bearing).build()
         // SKIP INSERT:     }
         // SKIP INSERT: }
 
-        // Sync camera -> binding: when the user moves the camera, update the binding
+        // Sync camera -> binding
         // SKIP INSERT: if (positionBinding != null && !cameraPositionState.isMoving) {
-        // SKIP INSERT:     val camPos = cameraPositionState.position
-        // SKIP INSERT:     val newPos = GoogleMapPosition(
-        // SKIP INSERT:         target = GoogleMapCoordinate(latitude = camPos.target.latitude, longitude = camPos.target.longitude),
-        // SKIP INSERT:         zoom = camPos.zoom,
-        // SKIP INSERT:         tilt = camPos.tilt,
-        // SKIP INSERT:         bearing = camPos.bearing
-        // SKIP INSERT:     )
-        // SKIP INSERT:     if (newPos != positionBinding!!.wrappedValue) {
-        // SKIP INSERT:         positionBinding!!.wrappedValue = newPos
-        // SKIP INSERT:     }
+        // SKIP INSERT:     val cp = cameraPositionState.position
+        // SKIP INSERT:     val np = GoogleMapPosition(target = GoogleMapCoordinate(latitude = cp.target.latitude, longitude = cp.target.longitude), zoom = cp.zoom, tilt = cp.tilt, bearing = cp.bearing)
+        // SKIP INSERT:     if (np != positionBinding!!.wrappedValue) { positionBinding!!.wrappedValue = np }
         // SKIP INSERT: }
 
         let mapProperties = MapProperties(
@@ -459,35 +514,50 @@ public struct GoogleMapView: View {
         //     cameraPositionState = cameraPositionState,
         //     properties = mapProperties,
         //     uiSettings = mapUiSettings,
-        //     onMapClick = { latLng -> onMapTap?.invoke(GoogleMapCoordinate(latitude = latLng.latitude, longitude = latLng.longitude)); Unit }
+        //     onMapClick = { latLng -> onMapTap?.invoke(GoogleMapCoordinate(latitude = latLng.latitude, longitude = latLng.longitude)); Unit },
+        //     onMapLongClick = { latLng -> onMapLongPress?.invoke(GoogleMapCoordinate(latitude = latLng.latitude, longitude = latLng.longitude)); Unit }
         // ) {
         //     for (marker in markers) {
-        //         val markerState = MarkerState(position = com.google.android.gms.maps.model.LatLng(marker.position.latitude, marker.position.longitude))
+        //         val ms = MarkerState(position = com.google.android.gms.maps.model.LatLng(marker.position.latitude, marker.position.longitude))
         //         val icon = marker.hue?.let { com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(it) }
         //         Marker(
-        //             state = markerState,
+        //             state = ms,
         //             title = marker.title,
         //             snippet = marker.snippet,
         //             alpha = marker.opacity,
         //             draggable = marker.draggable,
         //             flat = marker.flat,
+        //             rotation = marker.rotation.toFloat(),
+        //             zIndex = marker.zIndex.toFloat(),
+        //             anchor = com.google.android.gms.maps.model.LatLng(marker.anchorX.toDouble(), marker.anchorY.toDouble()).let { androidx.compose.ui.geometry.Offset(marker.anchorX, marker.anchorY) },
         //             icon = icon,
-        //             onClick = { onMarkerTap?.invoke(marker) ?: false }
+        //             onClick = { onMarkerTap?.invoke(marker) ?: false },
+        //             onInfoWindowLongClick = { },
+        //             tag = marker.id
         //         )
         //     }
         //     for (polyline in polylines) {
         //         Polyline(
         //             points = polyline.points.map { com.google.android.gms.maps.model.LatLng(it.latitude, it.longitude) }.toList(),
         //             color = androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(polyline.strokeColorHex)),
-        //             width = polyline.strokeWidth
+        //             width = polyline.strokeWidth,
+        //             geodesic = polyline.geodesic,
+        //             clickable = polyline.tappable,
+        //             zIndex = polyline.zIndex.toFloat(),
+        //             onClick = { onPolylineTap?.invoke(polyline); Unit }
         //         )
         //     }
         //     for (polygon in polygons) {
         //         Polygon(
         //             points = polygon.points.map { com.google.android.gms.maps.model.LatLng(it.latitude, it.longitude) }.toList(),
+        //             holes = polygon.holes.map { hole -> hole.map { com.google.android.gms.maps.model.LatLng(it.latitude, it.longitude) }.toList() }.toList(),
         //             strokeColor = androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(polygon.strokeColorHex)),
         //             fillColor = androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(polygon.fillColorHex)),
-        //             strokeWidth = polygon.strokeWidth
+        //             strokeWidth = polygon.strokeWidth,
+        //             geodesic = polygon.geodesic,
+        //             clickable = polygon.tappable,
+        //             zIndex = polygon.zIndex.toFloat(),
+        //             onClick = { onPolygonTap?.invoke(polygon); Unit }
         //         )
         //     }
         //     for (circle in circles) {
@@ -496,7 +566,10 @@ public struct GoogleMapView: View {
         //             radius = circle.radius,
         //             strokeColor = androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(circle.strokeColorHex)),
         //             fillColor = androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(circle.fillColorHex)),
-        //             strokeWidth = circle.strokeWidth
+        //             strokeWidth = circle.strokeWidth,
+        //             clickable = circle.tappable,
+        //             zIndex = circle.zIndex.toFloat(),
+        //             onClick = { onCircleTap?.invoke(circle); Unit }
         //         )
         //     }
         // }
@@ -514,6 +587,32 @@ public struct GoogleMapView: View {
     #endif
 }
 
+// MARK: - View Modifiers for Composability
+
+extension GoogleMapView {
+    /// Return a new GoogleMapView with additional markers appended.
+    public func mapMarkers(_ newMarkers: [GoogleMapMarker]) -> GoogleMapView {
+        var copy = self
+        // SKIP REPLACE: val combined = copy.markers.toMutableList(); combined.addAll(newMarkers.toList()); return GoogleMapView(initialCamera = copy.initialCamera, position = copy.positionBinding, configuration = copy.configuration, markers = skip.lib.Array(combined), polylines = copy.polylines, polygons = copy.polygons, circles = copy.circles, onMapTap = copy.onMapTap, onMapLongPress = copy.onMapLongPress, onMarkerTap = copy.onMarkerTap, onMarkerDragEnd = copy.onMarkerDragEnd, onPolylineTap = copy.onPolylineTap, onPolygonTap = copy.onPolygonTap, onCircleTap = copy.onCircleTap)
+        return GoogleMapView(initialCamera: copy.initialCamera, position: copy.positionBinding, configuration: copy.configuration, markers: copy.markers + newMarkers, polylines: copy.polylines, polygons: copy.polygons, circles: copy.circles, onMapTap: copy.onMapTap, onMapLongPress: copy.onMapLongPress, onMarkerTap: copy.onMarkerTap, onMarkerDragEnd: copy.onMarkerDragEnd, onPolylineTap: copy.onPolylineTap, onPolygonTap: copy.onPolygonTap, onCircleTap: copy.onCircleTap)
+    }
+
+    /// Return a new GoogleMapView with additional polylines appended.
+    public func mapPolylines(_ newPolylines: [GoogleMapPolyline]) -> GoogleMapView {
+        return GoogleMapView(initialCamera: initialCamera, position: positionBinding, configuration: configuration, markers: markers, polylines: polylines + newPolylines, polygons: polygons, circles: circles, onMapTap: onMapTap, onMapLongPress: onMapLongPress, onMarkerTap: onMarkerTap, onMarkerDragEnd: onMarkerDragEnd, onPolylineTap: onPolylineTap, onPolygonTap: onPolygonTap, onCircleTap: onCircleTap)
+    }
+
+    /// Return a new GoogleMapView with additional polygons appended.
+    public func mapPolygons(_ newPolygons: [GoogleMapPolygon]) -> GoogleMapView {
+        return GoogleMapView(initialCamera: initialCamera, position: positionBinding, configuration: configuration, markers: markers, polylines: polylines, polygons: polygons + newPolygons, circles: circles, onMapTap: onMapTap, onMapLongPress: onMapLongPress, onMarkerTap: onMarkerTap, onMarkerDragEnd: onMarkerDragEnd, onPolylineTap: onPolylineTap, onPolygonTap: onPolygonTap, onCircleTap: onCircleTap)
+    }
+
+    /// Return a new GoogleMapView with additional circles appended.
+    public func mapCircles(_ newCircles: [GoogleMapCircle]) -> GoogleMapView {
+        return GoogleMapView(initialCamera: initialCamera, position: positionBinding, configuration: configuration, markers: markers, polylines: polylines, polygons: polygons, circles: circles + newCircles, onMapTap: onMapTap, onMapLongPress: onMapLongPress, onMarkerTap: onMarkerTap, onMarkerDragEnd: onMarkerDragEnd, onPolylineTap: onPolylineTap, onPolygonTap: onPolygonTap, onCircleTap: onCircleTap)
+    }
+}
+
 // MARK: - iOS UIViewRepresentable Implementation
 
 #if canImport(GoogleMaps) && os(iOS) && !SKIP
@@ -527,7 +626,12 @@ struct GoogleMapViewRepresentable: UIViewRepresentable {
     let polygons: [GoogleMapPolygon]
     let circles: [GoogleMapCircle]
     let onMapTap: ((GoogleMapCoordinate) -> Void)?
+    let onMapLongPress: ((GoogleMapCoordinate) -> Void)?
     let onMarkerTap: ((GoogleMapMarker) -> Bool)?
+    let onMarkerDragEnd: ((GoogleMapMarker, GoogleMapCoordinate) -> Void)?
+    let onPolylineTap: ((GoogleMapPolyline) -> Void)?
+    let onPolygonTap: ((GoogleMapPolygon) -> Void)?
+    let onCircleTap: ((GoogleMapCircle) -> Void)?
 
     func makeUIView(context: Context) -> GMSMapView {
         let camera = GMSCameraPosition(
@@ -539,8 +643,11 @@ struct GoogleMapViewRepresentable: UIViewRepresentable {
         )
         let mapView = GMSMapView(frame: .zero, camera: camera)
         mapView.delegate = context.coordinator
+        if let minZoom = configuration.minZoom, let maxZoom = configuration.maxZoom {
+            mapView.setMinZoom(minZoom, maxZoom: maxZoom)
+        }
         applyConfiguration(to: mapView)
-        addOverlays(to: mapView)
+        addOverlays(to: mapView, coordinator: context.coordinator)
         return mapView
     }
 
@@ -548,9 +655,9 @@ struct GoogleMapViewRepresentable: UIViewRepresentable {
         context.coordinator.parent = self
         applyConfiguration(to: mapView)
         mapView.clear()
-        addOverlays(to: mapView)
+        context.coordinator.overlayMap.removeAll()
+        addOverlays(to: mapView, coordinator: context.coordinator)
 
-        // When the position binding changes externally, move the camera
         if let positionBinding = positionBinding {
             let pos = positionBinding.wrappedValue
             let current = mapView.camera
@@ -596,7 +703,7 @@ struct GoogleMapViewRepresentable: UIViewRepresentable {
         mapView.settings.rotateGestures = configuration.isRotateGesturesEnabled
     }
 
-    private func addOverlays(to mapView: GMSMapView) {
+    private func addOverlays(to mapView: GMSMapView, coordinator: Coordinator) {
         for marker in markers {
             let gmsMarker = GMSMarker()
             gmsMarker.position = CLLocationCoordinate2D(latitude: marker.position.latitude, longitude: marker.position.longitude)
@@ -605,9 +712,9 @@ struct GoogleMapViewRepresentable: UIViewRepresentable {
             gmsMarker.opacity = marker.opacity
             gmsMarker.isDraggable = marker.draggable
             gmsMarker.isFlat = marker.flat
-//            if let hue = marker.hue {
-//                gmsMarker.icon = GMSMarker.markerImage(with: hue)
-//            }
+            gmsMarker.rotation = marker.rotation
+            gmsMarker.zIndex = Int32(marker.zIndex)
+            gmsMarker.groundAnchor = CGPoint(x: CGFloat(marker.anchorX), y: CGFloat(marker.anchorY))
             gmsMarker.userData = marker.id
             gmsMarker.map = mapView
         }
@@ -620,7 +727,11 @@ struct GoogleMapViewRepresentable: UIViewRepresentable {
             let gmsPolyline = GMSPolyline(path: path)
             gmsPolyline.strokeColor = colorFromHex(polyline.strokeColorHex)
             gmsPolyline.strokeWidth = CGFloat(polyline.strokeWidth)
+            gmsPolyline.geodesic = polyline.geodesic
+            gmsPolyline.zIndex = Int32(polyline.zIndex)
+            gmsPolyline.isTappable = polyline.tappable
             gmsPolyline.map = mapView
+            coordinator.overlayMap[ObjectIdentifier(gmsPolyline)] = polyline.id
         }
 
         for polygon in polygons {
@@ -632,7 +743,20 @@ struct GoogleMapViewRepresentable: UIViewRepresentable {
             gmsPolygon.strokeColor = colorFromHex(polygon.strokeColorHex)
             gmsPolygon.fillColor = colorFromHex(polygon.fillColorHex)
             gmsPolygon.strokeWidth = CGFloat(polygon.strokeWidth)
+            gmsPolygon.geodesic = polygon.geodesic
+            gmsPolygon.zIndex = Int32(polygon.zIndex)
+            gmsPolygon.isTappable = polygon.tappable
+            if !polygon.holes.isEmpty {
+                gmsPolygon.holes = polygon.holes.map { hole in
+                    let holePath = GMSMutablePath()
+                    for point in hole {
+                        holePath.add(CLLocationCoordinate2D(latitude: point.latitude, longitude: point.longitude))
+                    }
+                    return holePath
+                }
+            }
             gmsPolygon.map = mapView
+            coordinator.overlayMap[ObjectIdentifier(gmsPolygon)] = polygon.id
         }
 
         for circle in circles {
@@ -643,12 +767,16 @@ struct GoogleMapViewRepresentable: UIViewRepresentable {
             gmsCircle.strokeColor = colorFromHex(circle.strokeColorHex)
             gmsCircle.fillColor = colorFromHex(circle.fillColorHex)
             gmsCircle.strokeWidth = CGFloat(circle.strokeWidth)
+            gmsCircle.zIndex = Int32(circle.zIndex)
+            gmsCircle.isTappable = circle.tappable
             gmsCircle.map = mapView
+            coordinator.overlayMap[ObjectIdentifier(gmsCircle)] = circle.id
         }
     }
 
     class Coordinator: NSObject, @preconcurrency GMSMapViewDelegate {
         var parent: GoogleMapViewRepresentable
+        var overlayMap: [ObjectIdentifier: String] = [:]
 
         init(parent: GoogleMapViewRepresentable) {
             self.parent = parent
@@ -658,12 +786,41 @@ struct GoogleMapViewRepresentable: UIViewRepresentable {
             parent.onMapTap?(GoogleMapCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude))
         }
 
+        @MainActor func mapView(_ mapView: GMSMapView, didLongPressAt coordinate: CLLocationCoordinate2D) {
+            parent.onMapLongPress?(GoogleMapCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude))
+        }
+
         @MainActor func mapView(_ mapView: GMSMapView, didTap marker: GMSMarker) -> Bool {
             guard let markerId = marker.userData as? String else { return false }
             if let matchedMarker = parent.markers.first(where: { $0.id == markerId }) {
                 return parent.onMarkerTap?(matchedMarker) ?? false
             }
             return false
+        }
+
+        @MainActor func mapView(_ mapView: GMSMapView, didEndDragging marker: GMSMarker) {
+            guard let markerId = marker.userData as? String else { return }
+            if let matchedMarker = parent.markers.first(where: { $0.id == markerId }) {
+                let newCoord = GoogleMapCoordinate(latitude: marker.position.latitude, longitude: marker.position.longitude)
+                parent.onMarkerDragEnd?(matchedMarker, newCoord)
+            }
+        }
+
+        @MainActor func mapView(_ mapView: GMSMapView, didTap overlay: GMSOverlay) {
+            guard let overlayId = overlayMap[ObjectIdentifier(overlay)] else { return }
+            if overlay is GMSPolyline {
+                if let matched = parent.polylines.first(where: { $0.id == overlayId }) {
+                    parent.onPolylineTap?(matched)
+                }
+            } else if overlay is GMSPolygon {
+                if let matched = parent.polygons.first(where: { $0.id == overlayId }) {
+                    parent.onPolygonTap?(matched)
+                }
+            } else if overlay is GMSCircle {
+                if let matched = parent.circles.first(where: { $0.id == overlayId }) {
+                    parent.onCircleTap?(matched)
+                }
+            }
         }
 
         @MainActor func mapView(_ mapView: GMSMapView, idleAt position: GMSCameraPosition) {

@@ -220,24 +220,93 @@ var body: some View {
 
 When the user pans or zooms the map, `mapPosition` is automatically updated. When you change `mapPosition` programmatically (e.g. from a button), the camera animates to the new position.
 
-### Handling Map and Marker Taps
+### Handling Taps and Interactions
+
+All overlays support tap callbacks. Markers also support drag-end callbacks:
 
 ```swift
-@State var tappedLocation: GoogleMapCoordinate?
-
 GoogleMapView(
     initialCamera: GoogleMapCameraPosition(
         target: GoogleMapCoordinate(latitude: 37.7749, longitude: -122.4194)
     ),
     markers: myMarkers,
+    polylines: myPolylines,
+    polygons: myPolygons,
+    circles: myCircles,
     onMapTap: { coordinate in
-        tappedLocation = coordinate
+        print("Map tapped at \(coordinate.latitude), \(coordinate.longitude)")
+    },
+    onMapLongPress: { coordinate in
+        print("Long press at \(coordinate.latitude), \(coordinate.longitude)")
     },
     onMarkerTap: { marker in
         print("Marker: \(marker.title ?? "unknown")")
-        return true
+        return true // consume the event
+    },
+    onMarkerDragEnd: { marker, newPosition in
+        print("Marker \(marker.id) dragged to \(newPosition.latitude), \(newPosition.longitude)")
+    },
+    onPolylineTap: { polyline in
+        print("Polyline tapped: \(polyline.id)")
+    },
+    onPolygonTap: { polygon in
+        print("Polygon tapped: \(polygon.id)")
+    },
+    onCircleTap: { circle in
+        print("Circle tapped: \(circle.id)")
     }
 )
+```
+
+> [!NOTE]
+> Polylines, polygons, and circles must have `tappable: true` set to receive tap events.
+
+### Advanced Marker Properties
+
+```swift
+GoogleMapMarker(
+    position: coord,
+    title: "Rotated Pin",
+    rotation: 45.0,          // Clockwise rotation in degrees
+    zIndex: 10,              // Draw ordering (higher = on top)
+    anchorX: Float(0.5),     // Anchor point X (0.0 - 1.0)
+    anchorY: Float(0.5)      // Anchor point Y (center instead of bottom)
+)
+```
+
+### Geodesic Lines and Polygon Holes
+
+```swift
+// Geodesic polyline (curves along earth's surface)
+GoogleMapPolyline(
+    points: [startCoord, endCoord],
+    geodesic: true,
+    tappable: true
+)
+
+// Dashed line pattern
+GoogleMapPolyline(
+    points: routePoints,
+    pattern: [.dash(Float(20.0)), .gap(Float(10.0))]
+)
+
+// Polygon with exclusion zones (holes)
+GoogleMapPolygon(
+    points: outerBoundary,
+    fillColorHex: "#4000FF00",
+    holes: [innerCutout1, innerCutout2]
+)
+```
+
+### Composable Map Modifiers
+
+Build up annotations declaratively:
+
+```swift
+GoogleMapView(initialCamera: camera, configuration: config)
+    .mapMarkers(locationMarkers)
+    .mapPolylines(routeLines)
+    .mapCircles(radiusCircles)
 ```
 
 ### Marker Colors
@@ -263,7 +332,12 @@ GoogleMapMarker(position: coord, title: "Yellow", hue: GoogleMapMarkerHue.yellow
 | `polygons` | `[GoogleMapPolygon]` | Filled polygons to draw |
 | `circles` | `[GoogleMapCircle]` | Circle overlays |
 | `onMapTap` | `((GoogleMapCoordinate) -> Void)?` | Called when the map is tapped |
+| `onMapLongPress` | `((GoogleMapCoordinate) -> Void)?` | Called on long press |
 | `onMarkerTap` | `((GoogleMapMarker) -> Bool)?` | Called when a marker is tapped |
+| `onMarkerDragEnd` | `((GoogleMapMarker, GoogleMapCoordinate) -> Void)?` | Called when a draggable marker is dropped |
+| `onPolylineTap` | `((GoogleMapPolyline) -> Void)?` | Called when a tappable polyline is tapped |
+| `onPolygonTap` | `((GoogleMapPolygon) -> Void)?` | Called when a tappable polygon is tapped |
+| `onCircleTap` | `((GoogleMapCircle) -> Void)?` | Called when a tappable circle is tapped |
 
 ### GoogleMapCameraPosition
 
@@ -296,6 +370,8 @@ A two-way bindable camera position. Use with `@State` and `$position` to track a
 | `isCompassEnabled` | `Bool` | `true` | Compass indicator |
 | `isBuildingEnabled` | `Bool` | `true` | 3D buildings |
 | `isIndoorEnabled` | `Bool` | `true` | Indoor maps |
+| `minZoom` | `Float?` | `nil` | Minimum camera zoom level |
+| `maxZoom` | `Float?` | `nil` | Maximum camera zoom level |
 
 ### GoogleMapMarker
 
@@ -308,6 +384,10 @@ A two-way bindable camera position. Use with `@State` and `$position` to track a
 | `opacity` | `Float` | 1.0 | Opacity (0.0–1.0) |
 | `draggable` | `Bool` | `false` | Allow dragging |
 | `flat` | `Bool` | `false` | Flat against map surface |
+| `rotation` | `Double` | 0.0 | Clockwise rotation in degrees |
+| `zIndex` | `Int` | 0 | Draw ordering (higher = on top) |
+| `anchorX` | `Float` | 0.5 | Anchor X (0.0–1.0) |
+| `anchorY` | `Float` | 1.0 | Anchor Y (0.0–1.0) |
 
 ### GoogleMapMarkerHue
 
