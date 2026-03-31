@@ -647,18 +647,18 @@ struct GoogleMapViewRepresentable: UIViewRepresentable {
         }
     }
 
-    class Coordinator: NSObject, GMSMapViewDelegate {
+    class Coordinator: NSObject, @preconcurrency GMSMapViewDelegate {
         var parent: GoogleMapViewRepresentable
 
         init(parent: GoogleMapViewRepresentable) {
             self.parent = parent
         }
 
-        func mapView(_ mapView: GMSMapView, didTapAt coordinate: CLLocationCoordinate2D) {
+        @MainActor func mapView(_ mapView: GMSMapView, didTapAt coordinate: CLLocationCoordinate2D) {
             parent.onMapTap?(GoogleMapCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude))
         }
 
-        func mapView(_ mapView: GMSMapView, didTap marker: GMSMarker) -> Bool {
+        @MainActor func mapView(_ mapView: GMSMapView, didTap marker: GMSMarker) -> Bool {
             guard let markerId = marker.userData as? String else { return false }
             if let matchedMarker = parent.markers.first(where: { $0.id == markerId }) {
                 return parent.onMarkerTap?(matchedMarker) ?? false
@@ -666,7 +666,7 @@ struct GoogleMapViewRepresentable: UIViewRepresentable {
             return false
         }
 
-        func mapView(_ mapView: GMSMapView, idleAt position: GMSCameraPosition) {
+        @MainActor func mapView(_ mapView: GMSMapView, idleAt position: GMSCameraPosition) {
             guard let binding = parent.positionBinding else { return }
             let newPos = GoogleMapPosition(
                 target: GoogleMapCoordinate(latitude: position.target.latitude, longitude: position.target.longitude),

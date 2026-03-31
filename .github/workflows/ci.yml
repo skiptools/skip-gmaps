@@ -1,4 +1,4 @@
-name: skip-gmails
+name: skip-gmaps
 on:
   push:
     branches: [ main ]
