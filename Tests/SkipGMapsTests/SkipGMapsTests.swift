@@ -155,7 +155,7 @@ let logger: Logger = Logger(subsystem: "SkipGMaps", category: "Tests")
         #expect(GoogleMapMarkerHue.yellow == Float(60.0))
     }
 
-    @Test func testGoogleMapViewInit() throws {
+    @Test @MainActor func testGoogleMapViewInit() async throws {
         // Verify the view can be constructed with defaults
         let view = GoogleMapView()
         _ = view
